@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Search, Users, Clock, Calendar, MoveVertical as MoreVertical, Edit, Trash2, Eye } from 'lucide-react-native';
+import { Plus, Search, Users, Clock, Calendar, MoveVertical as MoreVertical, CreditCard as Edit, Trash2, Eye } from 'lucide-react-native';
 import { useAuthContext } from '@/components/AuthProvider';
 import { useClasses } from '@/hooks/useClasses';
 import { useClassStudents } from '@/hooks/useClasses';

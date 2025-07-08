@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Calendar, Users, BookOpen, TrendingUp, Bell, Clock, CheckCircle } from 'lucide-react-native';
+import { Plus, Calendar, Users, BookOpen, TrendingUp, Bell, Clock, CircleCheck as CheckCircle } from 'lucide-react-native';
 import { useAuthContext } from '@/components/AuthProvider';
 import { useClasses } from '@/hooks/useClasses';
 import { useStudents } from '@/hooks/useStudents';
