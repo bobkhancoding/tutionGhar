@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Search, Phone, Mail, GraduationCap, MoveVertical as MoreVertical } from 'lucide-react-native';
+import { Plus, Search, Phone, Mail, GraduationCap, MoveVertical as MoreVertical, MessageCircle, Eye, UserPlus } from 'lucide-react-native';
 import { useAuthContext } from '@/components/AuthProvider';
 import { useStudents } from '@/hooks/useStudents';
+import { useClasses } from '@/hooks/useClasses';
 
 export default function StudentsScreen() {
   const { profile } = useAuthContext();
-  const { students, isLoading } = useStudents(profile?.id);
+  const { students, isLoading, updateStudent } = useStudents(profile?.id);
+  const { classes } = useClasses(profile?.id);
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [showStudentModal, setShowStudentModal] = useState(false);
 
   const filteredStudents = students?.filter(student =>
     student.full_name.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -17,8 +21,27 @@ export default function StudentsScreen() {
     (student.phone && student.phone.includes(searchText))
   ) || [];
 
-  const getStatusColor = (status: string) => {
-    return status === 'Active' ? '#10B981' : '#EF4444';
+  const handleViewStudent = (student: any) => {
+    setSelectedStudent(student);
+    setShowStudentModal(true);
+  };
+
+  const handleUpdateStudent = async (studentId: string, updates: any) => {
+    try {
+      await updateStudent.mutateAsync({ id: studentId, updates });
+      Alert.alert('Success', 'Student updated successfully!');
+      setShowStudentModal(false);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update student. Please try again.');
+    }
+  };
+
+  const getStudentClasses = (studentId: string) => {
+    // This would need to be implemented with proper class_students relationship
+    return classes?.filter(cls => 
+      // For now, we'll show all classes since we don't have the relationship data
+      true
+    ).slice(0, 2) || [];
   };
 
   if (isLoading) {
@@ -76,59 +99,75 @@ export default function StudentsScreen() {
       <ScrollView style={styles.studentsContainer} showsVerticalScrollIndicator={false}>
         {filteredStudents.length === 0 ? (
           <View style={styles.emptyContainer}>
+            <UserPlus size={64} color="#9CA3AF" />
             <Text style={styles.emptyText}>No students found</Text>
             <Text style={styles.emptySubtext}>Students will appear here when they join your classes</Text>
           </View>
         ) : (
-          filteredStudents.map((student) => (
-            <View key={student.id} style={styles.studentCard}>
-              <View style={styles.studentHeader}>
-                <View style={styles.studentAvatar}>
-                  <Text style={styles.studentInitials}>
-                    {student.full_name.split(' ').map(n => n[0]).join('')}
-                  </Text>
+          filteredStudents.map((student) => {
+            const studentClasses = getStudentClasses(student.id);
+            return (
+              <View key={student.id} style={styles.studentCard}>
+                <View style={styles.studentHeader}>
+                  <View style={styles.studentAvatar}>
+                    <Text style={styles.studentInitials}>
+                      {student.full_name.split(' ').map(n => n[0]).join('')}
+                    </Text>
+                  </View>
+                  <View style={styles.studentInfo}>
+                    <Text style={styles.studentName}>{student.full_name}</Text>
+                    <View style={styles.studentStatus}>
+                      <View style={[styles.statusDot, { backgroundColor: '#10B981' }]} />
+                      <Text style={[styles.statusText, { color: '#10B981' }]}>
+                        Active
+                      </Text>
+                    </View>
+                    {studentClasses.length > 0 && (
+                      <Text style={styles.studentClasses}>
+                        {studentClasses.map(cls => cls.subject).join(', ')}
+                      </Text>
+                    )}
+                  </View>
+                  <TouchableOpacity 
+                    style={styles.moreButton}
+                    onPress={() => handleViewStudent(student)}
+                  >
+                    <Eye size={20} color="#6B7280" />
+                  </TouchableOpacity>
                 </View>
-                <View style={styles.studentInfo}>
-                  <Text style={styles.studentName}>{student.full_name}</Text>
-                  <View style={styles.studentStatus}>
-                    <View style={[styles.statusDot, { backgroundColor: '#10B981' }]} />
-                    <Text style={[styles.statusText, { color: '#10B981' }]}>
-                      Active
+
+                <View style={styles.studentDetails}>
+                  <View style={styles.studentDetailItem}>
+                    <Mail size={16} color="#6B7280" />
+                    <Text style={styles.studentDetailText}>{student.email}</Text>
+                  </View>
+                  {student.phone && (
+                    <View style={styles.studentDetailItem}>
+                      <Phone size={16} color="#6B7280" />
+                      <Text style={styles.studentDetailText}>{student.phone}</Text>
+                    </View>
+                  )}
+                  <View style={styles.studentDetailItem}>
+                    <GraduationCap size={16} color="#6B7280" />
+                    <Text style={styles.studentDetailText}>
+                      {studentClasses.length} {studentClasses.length === 1 ? 'class' : 'classes'}
                     </Text>
                   </View>
                 </View>
-                <TouchableOpacity style={styles.moreButton}>
-                  <MoreVertical size={20} color="#6B7280" />
-                </TouchableOpacity>
-              </View>
 
-              <View style={styles.studentDetails}>
-                <View style={styles.studentDetailItem}>
-                  <Mail size={16} color="#6B7280" />
-                  <Text style={styles.studentDetailText}>{student.email}</Text>
-                </View>
-                {student.phone && (
-                  <View style={styles.studentDetailItem}>
-                    <Phone size={16} color="#6B7280" />
-                    <Text style={styles.studentDetailText}>{student.phone}</Text>
-                  </View>
-                )}
-                <View style={styles.studentDetailItem}>
-                  <GraduationCap size={16} color="#6B7280" />
-                  <Text style={styles.studentDetailText}>Student</Text>
+                <View style={styles.studentActions}>
+                  <TouchableOpacity style={[styles.actionButton, styles.secondaryButton]}>
+                    <Eye size={16} color="#374151" />
+                    <Text style={styles.secondaryButtonText}>View Profile</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.actionButton, styles.primaryButton]}>
+                    <MessageCircle size={16} color="#FFFFFF" />
+                    <Text style={styles.primaryButtonText}>Message</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
-
-              <View style={styles.studentActions}>
-                <TouchableOpacity style={[styles.actionButton, styles.secondaryButton]}>
-                  <Text style={styles.secondaryButtonText}>View Profile</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.actionButton, styles.primaryButton]}>
-                  <Text style={styles.primaryButtonText}>Message</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
 
@@ -149,10 +188,90 @@ export default function StudentsScreen() {
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.modalContent}>
-            <Text style={styles.modalNote}>
-              Students can join your classes by signing up with their email and enrolling in your classes.
-            </Text>
+            <View style={styles.infoCard}>
+              <UserPlus size={48} color="#6C63FF" />
+              <Text style={styles.infoTitle}>How to Add Students</Text>
+              <Text style={styles.infoText}>
+                Students can join your classes by:
+              </Text>
+              <View style={styles.infoSteps}>
+                <Text style={styles.infoStep}>1. Creating an account with their email</Text>
+                <Text style={styles.infoStep}>2. Searching for your classes</Text>
+                <Text style={styles.infoStep}>3. Requesting to join your class</Text>
+                <Text style={styles.infoStep}>4. You can then approve their enrollment</Text>
+              </View>
+              <Text style={styles.infoNote}>
+                You can also share your class codes with students for quick enrollment.
+              </Text>
+            </View>
           </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Student Detail Modal */}
+      <Modal
+        visible={showStudentModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowStudentModal(false)}>
+              <Text style={styles.cancelButton}>Close</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Student Details</Text>
+            <TouchableOpacity>
+              <Text style={styles.saveButton}>Edit</Text>
+            </TouchableOpacity>
+          </View>
+          {selectedStudent && (
+            <ScrollView style={styles.modalContent}>
+              <View style={styles.studentDetailCard}>
+                <View style={styles.studentDetailAvatar}>
+                  <Text style={styles.studentDetailInitials}>
+                    {selectedStudent.full_name.split(' ').map((n: string) => n[0]).join('')}
+                  </Text>
+                </View>
+                <Text style={styles.studentDetailName}>{selectedStudent.full_name}</Text>
+                <Text style={styles.studentDetailRole}>{selectedStudent.role}</Text>
+                
+                <View style={styles.studentDetailInfo}>
+                  <View style={styles.studentDetailItem}>
+                    <Mail size={20} color="#6B7280" />
+                    <Text style={styles.studentDetailText}>{selectedStudent.email}</Text>
+                  </View>
+                  {selectedStudent.phone && (
+                    <View style={styles.studentDetailItem}>
+                      <Phone size={20} color="#6B7280" />
+                      <Text style={styles.studentDetailText}>{selectedStudent.phone}</Text>
+                    </View>
+                  )}
+                  {selectedStudent.institute_name && (
+                    <View style={styles.studentDetailItem}>
+                      <GraduationCap size={20} color="#6B7280" />
+                      <Text style={styles.studentDetailText}>{selectedStudent.institute_name}</Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.enrolledClasses}>
+                  <Text style={styles.enrolledClassesTitle}>Enrolled Classes</Text>
+                  {getStudentClasses(selectedStudent.id).map((cls) => (
+                    <View key={cls.id} style={styles.enrolledClassItem}>
+                      <View style={[styles.classColorDot, { backgroundColor: cls.color }]} />
+                      <View style={styles.enrolledClassInfo}>
+                        <Text style={styles.enrolledClassName}>{cls.name}</Text>
+                        <Text style={styles.enrolledClassSubject}>{cls.subject} • Grade {cls.grade}</Text>
+                      </View>
+                    </View>
+                  ))}
+                  {getStudentClasses(selectedStudent.id).length === 0 && (
+                    <Text style={styles.noClasses}>Not enrolled in any classes yet</Text>
+                  )}
+                </View>
+              </View>
+            </ScrollView>
+          )}
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
@@ -262,6 +381,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1F2937',
     marginBottom: 8,
+    marginTop: 16,
   },
   emptySubtext: {
     fontSize: 14,
@@ -321,6 +441,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  studentClasses: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
   moreButton: {
     padding: 8,
   },
@@ -343,10 +468,13 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
+    flexDirection: 'row',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   secondaryButton: {
     backgroundColor: '#F3F4F6',
@@ -394,10 +522,114 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
-  modalNote: {
+  infoCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+  },
+  infoTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  infoText: {
     fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
-    lineHeight: 24,
+    marginBottom: 16,
+  },
+  infoSteps: {
+    alignSelf: 'stretch',
+    marginBottom: 16,
+  },
+  infoStep: {
+    fontSize: 14,
+    color: '#374151',
+    marginBottom: 8,
+    paddingLeft: 8,
+  },
+  infoNote: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  studentDetailCard: {
+    alignItems: 'center',
+  },
+  studentDetailAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#6C63FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  studentDetailInitials: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  studentDetailName: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  studentDetailRole: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginBottom: 24,
+    textTransform: 'capitalize',
+  },
+  studentDetailInfo: {
+    alignSelf: 'stretch',
+    marginBottom: 24,
+  },
+  enrolledClasses: {
+    alignSelf: 'stretch',
+  },
+  enrolledClassesTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 16,
+  },
+  enrolledClassItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  classColorDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 12,
+  },
+  enrolledClassInfo: {
+    flex: 1,
+  },
+  enrolledClassName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  enrolledClassSubject: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  noClasses: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

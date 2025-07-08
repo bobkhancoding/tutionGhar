@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Search, Users, Clock, Calendar, MoveVertical as MoreVertical } from 'lucide-react-native';
+import { Plus, Search, Users, Clock, Calendar, MoveVertical as MoreVertical, Edit, Trash2, Eye } from 'lucide-react-native';
 import { useAuthContext } from '@/components/AuthProvider';
 import { useClasses } from '@/hooks/useClasses';
+import { useClassStudents } from '@/hooks/useClasses';
 
 const classColors = ['#6C63FF', '#FFAA00', '#10B981', '#EF4444', '#8B5CF6', '#F59E0B'];
 
 export default function ClassesScreen() {
   const { profile } = useAuthContext();
-  const { classes, isLoading, createClass } = useClasses(profile?.id);
+  const { classes, isLoading, createClass, updateClass, deleteClass } = useClasses(profile?.id);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedClass, setSelectedClass] = useState<any>(null);
   const [searchText, setSearchText] = useState('');
   const [formData, setFormData] = useState({
     name: '',
@@ -24,6 +27,16 @@ export default function ClassesScreen() {
     cls.name.toLowerCase().includes(searchText.toLowerCase()) ||
     cls.subject.toLowerCase().includes(searchText.toLowerCase())
   ) || [];
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      subject: '',
+      grade: '',
+      description: '',
+      schedule: '',
+    });
+  };
 
   const handleCreateClass = async () => {
     if (!formData.name || !formData.subject || !formData.grade || !profile?.id) {
@@ -43,17 +56,72 @@ export default function ClassesScreen() {
       });
 
       setShowCreateModal(false);
-      setFormData({
-        name: '',
-        subject: '',
-        grade: '',
-        description: '',
-        schedule: '',
-      });
+      resetForm();
       Alert.alert('Success', 'Class created successfully!');
     } catch (error) {
       Alert.alert('Error', 'Failed to create class. Please try again.');
     }
+  };
+
+  const handleEditClass = (cls: any) => {
+    setSelectedClass(cls);
+    setFormData({
+      name: cls.name,
+      subject: cls.subject,
+      grade: cls.grade,
+      description: cls.description || '',
+      schedule: cls.schedule || '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateClass = async () => {
+    if (!formData.name || !formData.subject || !formData.grade || !selectedClass) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    try {
+      await updateClass.mutateAsync({
+        id: selectedClass.id,
+        updates: {
+          name: formData.name,
+          subject: formData.subject,
+          grade: formData.grade,
+          description: formData.description,
+          schedule: formData.schedule,
+        },
+      });
+
+      setShowEditModal(false);
+      setSelectedClass(null);
+      resetForm();
+      Alert.alert('Success', 'Class updated successfully!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update class. Please try again.');
+    }
+  };
+
+  const handleDeleteClass = (cls: any) => {
+    Alert.alert(
+      'Delete Class',
+      `Are you sure you want to delete "${cls.name}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteClass.mutateAsync(cls.id);
+              Alert.alert('Success', 'Class deleted successfully!');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete class. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (isLoading) {
@@ -65,6 +133,80 @@ export default function ClassesScreen() {
       </SafeAreaView>
     );
   }
+
+  const renderModal = (visible: boolean, onClose: () => void, onSave: () => void, title: string) => (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+    >
+      <SafeAreaView style={styles.modalContainer}>
+        <View style={styles.modalHeader}>
+          <TouchableOpacity onPress={onClose}>
+            <Text style={styles.cancelButton}>Cancel</Text>
+          </TouchableOpacity>
+          <Text style={styles.modalTitle}>{title}</Text>
+          <TouchableOpacity onPress={onSave}>
+            <Text style={styles.saveButton}>Save</Text>
+          </TouchableOpacity>
+        </View>
+        <ScrollView style={styles.modalContent}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Class Name *</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g., Mathematics - Grade 10"
+              placeholderTextColor="#9CA3AF"
+              value={formData.name}
+              onChangeText={(text) => setFormData({ ...formData, name: text })}
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Subject *</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g., Mathematics"
+              placeholderTextColor="#9CA3AF"
+              value={formData.subject}
+              onChangeText={(text) => setFormData({ ...formData, subject: text })}
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Grade *</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g., 10"
+              placeholderTextColor="#9CA3AF"
+              value={formData.grade}
+              onChangeText={(text) => setFormData({ ...formData, grade: text })}
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Schedule</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g., Mon, Wed, Fri - 4:00 PM"
+              placeholderTextColor="#9CA3AF"
+              value={formData.schedule}
+              onChangeText={(text) => setFormData({ ...formData, schedule: text })}
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Description</Text>
+            <TextInput
+              style={[styles.textInput, styles.textArea]}
+              placeholder="Class description..."
+              placeholderTextColor="#9CA3AF"
+              multiline
+              numberOfLines={4}
+              value={formData.description}
+              onChangeText={(text) => setFormData({ ...formData, description: text })}
+            />
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -107,9 +249,20 @@ export default function ClassesScreen() {
                   <Text style={styles.className}>{cls.name}</Text>
                   <Text style={styles.classGrade}>Grade {cls.grade}</Text>
                 </View>
-                <TouchableOpacity style={styles.moreButton}>
-                  <MoreVertical size={20} color="#6B7280" />
-                </TouchableOpacity>
+                <View style={styles.classActions}>
+                  <TouchableOpacity 
+                    style={styles.actionIcon}
+                    onPress={() => handleEditClass(cls)}
+                  >
+                    <Edit size={16} color="#6B7280" />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.actionIcon}
+                    onPress={() => handleDeleteClass(cls)}
+                  >
+                    <Trash2 size={16} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
               </View>
 
               <View style={styles.classDetails}>
@@ -131,8 +284,9 @@ export default function ClassesScreen() {
                 </View>
               </View>
 
-              <View style={styles.classActions}>
+              <View style={styles.classActionButtons}>
                 <TouchableOpacity style={[styles.actionButton, styles.secondaryButton]}>
+                  <Eye size={16} color="#374151" />
                   <Text style={styles.secondaryButtonText}>View Details</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.actionButton, styles.primaryButton]}>
@@ -145,77 +299,27 @@ export default function ClassesScreen() {
       </ScrollView>
 
       {/* Create Class Modal */}
-      <Modal
-        visible={showCreateModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowCreateModal(false)}>
-              <Text style={styles.cancelButton}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Create New Class</Text>
-            <TouchableOpacity onPress={handleCreateClass}>
-              <Text style={styles.saveButton}>Save</Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView style={styles.modalContent}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Class Name *</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g., Mathematics - Grade 10"
-                placeholderTextColor="#9CA3AF"
-                value={formData.name}
-                onChangeText={(text) => setFormData({ ...formData, name: text })}
-              />
-            </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Subject *</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g., Mathematics"
-                placeholderTextColor="#9CA3AF"
-                value={formData.subject}
-                onChangeText={(text) => setFormData({ ...formData, subject: text })}
-              />
-            </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Grade *</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g., 10"
-                placeholderTextColor="#9CA3AF"
-                value={formData.grade}
-                onChangeText={(text) => setFormData({ ...formData, grade: text })}
-              />
-            </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Schedule</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g., Mon, Wed, Fri - 4:00 PM"
-                placeholderTextColor="#9CA3AF"
-                value={formData.schedule}
-                onChangeText={(text) => setFormData({ ...formData, schedule: text })}
-              />
-            </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Description</Text>
-              <TextInput
-                style={[styles.textInput, styles.textArea]}
-                placeholder="Class description..."
-                placeholderTextColor="#9CA3AF"
-                multiline
-                numberOfLines={4}
-                value={formData.description}
-                onChangeText={(text) => setFormData({ ...formData, description: text })}
-              />
-            </View>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+      {renderModal(
+        showCreateModal,
+        () => {
+          setShowCreateModal(false);
+          resetForm();
+        },
+        handleCreateClass,
+        'Create New Class'
+      )}
+
+      {/* Edit Class Modal */}
+      {renderModal(
+        showEditModal,
+        () => {
+          setShowEditModal(false);
+          setSelectedClass(null);
+          resetForm();
+        },
+        handleUpdateClass,
+        'Edit Class'
+      )}
     </SafeAreaView>
   );
 }
@@ -336,8 +440,14 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 2,
   },
-  moreButton: {
+  classActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionIcon: {
     padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
   },
   classDetails: {
     marginBottom: 20,
@@ -352,16 +462,19 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginLeft: 8,
   },
-  classActions: {
+  classActionButtons: {
     flexDirection: 'row',
     gap: 12,
   },
   actionButton: {
     flex: 1,
+    flexDirection: 'row',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   secondaryButton: {
     backgroundColor: '#F3F4F6',

@@ -1,15 +1,23 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Settings, Bell, CircleHelp as HelpCircle, Shield, LogOut, User, School, Mail, Phone, CreditCard as Edit3 } from 'lucide-react-native';
+import { Settings, Bell, CircleHelp as HelpCircle, Shield, LogOut, User, School, Mail, Phone, CreditCard as Edit3, Save } from 'lucide-react-native';
 import { useAuthContext } from '@/components/AuthProvider';
 import { useClasses } from '@/hooks/useClasses';
 import { useStudents } from '@/hooks/useStudents';
+import { useAttendanceStats } from '@/hooks/useAttendance';
 
 export default function ProfileScreen() {
-  const { profile, signOut } = useAuthContext();
+  const { profile, signOut, updateProfile } = useAuthContext();
   const { classes } = useClasses(profile?.id);
   const { students } = useStudents(profile?.id);
+  const { stats: attendanceStats } = useAttendanceStats(profile?.id);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    full_name: profile?.full_name || '',
+    phone: profile?.phone || '',
+    institute_name: profile?.institute_name || '',
+  });
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -28,6 +36,25 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleUpdateProfile = async () => {
+    try {
+      await updateProfile(editForm);
+      setShowEditModal(false);
+      Alert.alert('Success', 'Profile updated successfully!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    }
+  };
+
+  const openEditModal = () => {
+    setEditForm({
+      full_name: profile?.full_name || '',
+      phone: profile?.phone || '',
+      institute_name: profile?.institute_name || '',
+    });
+    setShowEditModal(true);
+  };
+
   const menuItems = [
     { icon: Settings, title: 'Settings', subtitle: 'App preferences and configuration' },
     { icon: Bell, title: 'Notifications', subtitle: 'Manage your notification preferences' },
@@ -41,7 +68,7 @@ export default function ProfileScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Profile</Text>
-          <TouchableOpacity style={styles.editButton}>
+          <TouchableOpacity style={styles.editButton} onPress={openEditModal}>
             <Edit3 size={20} color="#6C63FF" />
           </TouchableOpacity>
         </View>
@@ -86,7 +113,7 @@ export default function ProfileScreen() {
             <Text style={styles.statLabel}>Students</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>98%</Text>
+            <Text style={styles.statValue}>{attendanceStats?.presentPercentage || 0}%</Text>
             <Text style={styles.statLabel}>Attendance</Text>
           </View>
         </View>
@@ -110,11 +137,11 @@ export default function ProfileScreen() {
         <View style={styles.quickActionsContainer}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.quickActionsGrid}>
-            <TouchableOpacity style={styles.quickActionItem}>
+            <TouchableOpacity style={styles.quickActionItem} onPress={openEditModal}>
               <View style={[styles.quickActionIcon, { backgroundColor: '#6C63FF15' }]}>
                 <User size={24} color="#6C63FF" />
               </View>
-              <Text style={styles.quickActionText}>View Profile</Text>
+              <Text style={styles.quickActionText}>Edit Profile</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickActionItem}>
               <View style={[styles.quickActionIcon, { backgroundColor: '#FFAA0015' }]}>
@@ -144,6 +171,67 @@ export default function ProfileScreen() {
           <Text style={styles.appTagline}>Nepal's Own Smart Tuition App</Text>
         </View>
       </ScrollView>
+
+      {/* Edit Profile Modal */}
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowEditModal(false)}>
+              <Text style={styles.cancelButton}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Edit Profile</Text>
+            <TouchableOpacity onPress={handleUpdateProfile}>
+              <Save size={20} color="#6C63FF" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Full Name</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter your full name"
+                placeholderTextColor="#9CA3AF"
+                value={editForm.full_name}
+                onChangeText={(text) => setEditForm({ ...editForm, full_name: text })}
+              />
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Phone Number</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter your phone number"
+                placeholderTextColor="#9CA3AF"
+                value={editForm.phone}
+                onChangeText={(text) => setEditForm({ ...editForm, phone: text })}
+                keyboardType="phone-pad"
+              />
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Institute Name</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter your institute name"
+                placeholderTextColor="#9CA3AF"
+                value={editForm.institute_name}
+                onChangeText={(text) => setEditForm({ ...editForm, institute_name: text })}
+              />
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Email</Text>
+              <TextInput
+                style={[styles.textInput, styles.disabledInput]}
+                value={profile?.email || ''}
+                editable={false}
+              />
+              <Text style={styles.inputNote}>Email cannot be changed</Text>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -374,5 +462,58 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  cancelButton: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#1F2937',
+    backgroundColor: '#FFFFFF',
+  },
+  disabledInput: {
+    backgroundColor: '#F3F4F6',
+    color: '#9CA3AF',
+  },
+  inputNote: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
   },
 });
