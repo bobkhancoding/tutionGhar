@@ -26,6 +26,7 @@ export function useAuth() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -43,6 +44,7 @@ export function useAuth() {
 
   const fetchProfile = async (userId: string) => {
     try {
+      console.log('Fetching profile for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -51,7 +53,12 @@ export function useAuth() {
 
       if (error) {
         console.error('Error fetching profile:', error);
+        // If profile doesn't exist, create one
+        if (error.code === 'PGRST116') {
+          console.log('Profile not found, will be created by trigger');
+        }
       } else {
+        console.log('Profile fetched successfully:', data);
         setProfile(data);
       }
     } catch (error) {
@@ -62,14 +69,23 @@ export function useAuth() {
   };
 
   const signIn = async (email: string, password: string) => {
+    console.log('Attempting to sign in with:', email);
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    
+    if (error) {
+      console.error('Sign in error:', error);
+    } else {
+      console.log('Sign in successful:', data.user?.email);
+    }
+    
     return { data, error };
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
+    console.log('Attempting to sign up with:', email, fullName);
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -79,17 +95,29 @@ export function useAuth() {
         },
       },
     });
+    
+    if (error) {
+      console.error('Sign up error:', error);
+    } else {
+      console.log('Sign up successful:', data.user?.email);
+    }
+    
     return { data, error };
   };
 
   const signOut = async () => {
+    console.log('Signing out');
     const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Sign out error:', error);
+    }
     return { error };
   };
 
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user) return { error: new Error('No user logged in') };
 
+    console.log('Updating profile:', updates);
     const { data, error } = await supabase
       .from('profiles')
       .update(updates)
@@ -98,7 +126,10 @@ export function useAuth() {
       .single();
 
     if (!error && data) {
+      console.log('Profile updated successfully:', data);
       setProfile(data);
+    } else {
+      console.error('Profile update error:', error);
     }
 
     return { data, error };

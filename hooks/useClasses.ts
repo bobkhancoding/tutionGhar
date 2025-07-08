@@ -16,23 +16,21 @@ export function useClasses(teacherId?: string) {
   } = useQuery({
     queryKey: ['classes', teacherId],
     queryFn: async () => {
-      let query = supabase
+      console.log('Fetching classes for teacher:', teacherId);
+      
+      const { data, error } = await supabase
         .from('classes')
-        .select(`
-          *,
-          class_students(count),
-          profiles!classes_teacher_id_fkey(full_name)
-        `)
+        .select('*')
+        .eq('teacher_id', teacherId)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
-      if (teacherId) {
-        query = query.eq('teacher_id', teacherId);
+      if (error) {
+        console.error('Error fetching classes:', error);
+        throw error;
       }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
+      
+      console.log('Classes fetched successfully:', data?.length);
       return data;
     },
     enabled: !!teacherId,
@@ -40,13 +38,20 @@ export function useClasses(teacherId?: string) {
 
   const createClass = useMutation({
     mutationFn: async (classData: ClassInsert) => {
+      console.log('Creating class:', classData);
+      
       const { data, error } = await supabase
         .from('classes')
         .insert(classData)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating class:', error);
+        throw error;
+      }
+      
+      console.log('Class created successfully:', data);
       return data;
     },
     onSuccess: () => {
@@ -56,6 +61,8 @@ export function useClasses(teacherId?: string) {
 
   const updateClass = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: ClassUpdate }) => {
+      console.log('Updating class:', id, updates);
+      
       const { data, error } = await supabase
         .from('classes')
         .update(updates)
@@ -63,7 +70,12 @@ export function useClasses(teacherId?: string) {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating class:', error);
+        throw error;
+      }
+      
+      console.log('Class updated successfully:', data);
       return data;
     },
     onSuccess: () => {
@@ -73,12 +85,19 @@ export function useClasses(teacherId?: string) {
 
   const deleteClass = useMutation({
     mutationFn: async (id: string) => {
+      console.log('Deleting class:', id);
+      
       const { error } = await supabase
         .from('classes')
         .update({ is_active: false })
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting class:', error);
+        throw error;
+      }
+      
+      console.log('Class deleted successfully');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['classes'] });
@@ -105,6 +124,8 @@ export function useClassStudents(classId: string) {
   } = useQuery({
     queryKey: ['class-students', classId],
     queryFn: async () => {
+      console.log('Fetching students for class:', classId);
+      
       const { data, error } = await supabase
         .from('class_students')
         .select(`
@@ -114,7 +135,12 @@ export function useClassStudents(classId: string) {
         .eq('class_id', classId)
         .eq('is_active', true);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching class students:', error);
+        throw error;
+      }
+      
+      console.log('Class students fetched successfully:', data?.length);
       return data;
     },
     enabled: !!classId,
@@ -122,6 +148,8 @@ export function useClassStudents(classId: string) {
 
   const enrollStudent = useMutation({
     mutationFn: async ({ studentId }: { studentId: string }) => {
+      console.log('Enrolling student:', studentId, 'in class:', classId);
+      
       const { data, error } = await supabase
         .from('class_students')
         .insert({
@@ -131,7 +159,12 @@ export function useClassStudents(classId: string) {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error enrolling student:', error);
+        throw error;
+      }
+      
+      console.log('Student enrolled successfully:', data);
       return data;
     },
     onSuccess: () => {
@@ -141,13 +174,20 @@ export function useClassStudents(classId: string) {
 
   const removeStudent = useMutation({
     mutationFn: async ({ studentId }: { studentId: string }) => {
+      console.log('Removing student:', studentId, 'from class:', classId);
+      
       const { error } = await supabase
         .from('class_students')
         .update({ is_active: false })
         .eq('class_id', classId)
         .eq('student_id', studentId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error removing student:', error);
+        throw error;
+      }
+      
+      console.log('Student removed successfully');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['class-students', classId] });

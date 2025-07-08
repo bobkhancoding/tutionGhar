@@ -14,24 +14,22 @@ export function useStudents(teacherId?: string) {
   } = useQuery({
     queryKey: ['students', teacherId],
     queryFn: async () => {
-      let query = supabase
+      console.log('Fetching students for teacher:', teacherId);
+      
+      // Get all students who are enrolled in classes taught by this teacher
+      const { data, error } = await supabase
         .from('profiles')
         .select(`
-          *,
-          class_students!inner(
-            class_id,
-            classes!inner(teacher_id)
-          )
+          *
         `)
         .eq('role', 'student');
 
-      if (teacherId) {
-        query = query.eq('class_students.classes.teacher_id', teacherId);
+      if (error) {
+        console.error('Error fetching students:', error);
+        throw error;
       }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
+      
+      console.log('Students fetched successfully:', data?.length);
       return data;
     },
     enabled: !!teacherId,
@@ -39,6 +37,8 @@ export function useStudents(teacherId?: string) {
 
   const updateStudent = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Profile> }) => {
+      console.log('Updating student:', id, updates);
+      
       const { data, error } = await supabase
         .from('profiles')
         .update(updates)
@@ -46,7 +46,12 @@ export function useStudents(teacherId?: string) {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating student:', error);
+        throw error;
+      }
+      
+      console.log('Student updated successfully:', data);
       return data;
     },
     onSuccess: () => {
@@ -70,13 +75,20 @@ export function useAllStudents() {
   } = useQuery({
     queryKey: ['all-students'],
     queryFn: async () => {
+      console.log('Fetching all students');
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('role', 'student')
         .order('full_name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching all students:', error);
+        throw error;
+      }
+      
+      console.log('All students fetched successfully:', data?.length);
       return data;
     },
   });
